@@ -34,8 +34,9 @@ ShowHelp() {
         "Ctrl+Win+Enter    Fullscreen`n"
         . "Ctrl+Win+Left/Right    Left/Right cycle (1/2 -> 1/3 -> 2/3)`n"
         . "Ctrl+Win+Up/Down       Top/Bottom cycle (1/2 -> 1/3 -> 2/3)`n"
-        . "Ctrl+Win+C        Center column 1/3`n"
-        . "Ctrl+Win+V        Middle row 1/3`n"
+        . "Ctrl+Win+C        Smart center (auto by monitor orientation)`n"
+        . "Ctrl+Win+H        Center column 1/3 (force, for 3-column layout)`n"
+        . "Ctrl+Win+V        Middle row 1/3 (force, for 3-row layout)`n"
         . "Ctrl+Win+Numpad 7/9/1/3   Quarter corners`n"
         . "Ctrl+Win+Shift+Left/Right Move to prev/next monitor`n"
         . "Ctrl+Win+Z        Undo last snap`n"
@@ -187,24 +188,45 @@ ActDown(*) {
     Snap(hwnd, wa.L, wa.B - h, wa.W, h)
 }
 
+DoCenterColumn(hwnd, wa) {
+    w := Round(wa.W / 3)
+    Snap(hwnd, wa.L + Round((wa.W - w) / 2), wa.T, w, wa.H)
+}
+
+DoCenterRow(hwnd, wa) {
+    h := Round(wa.H / 3)
+    Snap(hwnd, wa.L, wa.T + Round((wa.H - h) / 2), wa.W, h)
+}
+
+; Smart center: picks column vs row based on monitor orientation.
+ActCenterAuto(*) {
+    hwnd := GetActiveHwnd()
+    if !hwnd
+        return
+    ResetCycle()
+    wa := GetWorkAreaOf(hwnd)
+    if (wa.W >= wa.H)
+        DoCenterColumn(hwnd, wa)
+    else
+        DoCenterRow(hwnd, wa)
+}
+
+; Force center column 1/3 (for 3-column layouts), regardless of orientation.
 ActCenterColumn(*) {
     hwnd := GetActiveHwnd()
     if !hwnd
         return
     ResetCycle()
-    wa := GetWorkAreaOf(hwnd)
-    w := Round(wa.W / 3)
-    Snap(hwnd, wa.L + Round((wa.W - w) / 2), wa.T, w, wa.H)
+    DoCenterColumn(hwnd, GetWorkAreaOf(hwnd))
 }
 
+; Force middle row 1/3 (for 3-row layouts), regardless of orientation.
 ActMiddleRow(*) {
     hwnd := GetActiveHwnd()
     if !hwnd
         return
     ResetCycle()
-    wa := GetWorkAreaOf(hwnd)
-    h := Round(wa.H / 3)
-    Snap(hwnd, wa.L, wa.T + Round((wa.H - h) / 2), wa.W, h)
+    DoCenterRow(hwnd, GetWorkAreaOf(hwnd))
 }
 
 ActCornerTL(*) {
@@ -345,7 +367,8 @@ ActMoveMonitorRight(*) => MoveToMonitor("R")
 ^#Right::      ActRight()
 ^#Up::         ActUp()
 ^#Down::       ActDown()
-^#c::          ActCenterColumn()
+^#c::          ActCenterAuto()
+^#h::          ActCenterColumn()
 ^#v::          ActMiddleRow()
 
 ^#Numpad7::    ActCornerTL()

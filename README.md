@@ -59,8 +59,9 @@ All shortcuts use `Ctrl+Win` as the base modifier. Snapping respects the work ar
 | `Ctrl+Win+Right` | Right edge — cycles 1/2 -> 1/3 -> 2/3 |
 | `Ctrl+Win+Up` | Top edge — cycles 1/2 -> 1/3 -> 2/3 |
 | `Ctrl+Win+Down` | Bottom edge — cycles 1/2 -> 1/3 -> 2/3 |
-| `Ctrl+Win+C` | Center column 1/3 (for 3-column layouts) |
-| `Ctrl+Win+V` | Middle row 1/3 (for 3-row layouts) |
+| `Ctrl+Win+C` | Smart center — picks column or row 1/3 based on monitor orientation |
+| `Ctrl+Win+H` | Force center column 1/3 (for 3-column layouts) |
+| `Ctrl+Win+V` | Force middle row 1/3 (for 3-row layouts) |
 
 ### Quarter corners (numpad)
 
@@ -87,8 +88,9 @@ All shortcuts use `Ctrl+Win` as the base modifier. Snapping respects the work ar
 
 ### Tips
 
-- **Three-column layout**: `Ctrl+Win+Left` twice (-> 1/3), then `Ctrl+Win+C`, then `Ctrl+Win+Right` twice on another window. Three equal columns.
-- **Three-row layout**: same idea with `Up`, `V`, `Down`.
+- **Three-column layout** (landscape monitor): `Ctrl+Win+Left` twice (-> 1/3), then `Ctrl+Win+C`, then `Ctrl+Win+Right` twice on another window. Three equal columns.
+- **Three-row layout** (portrait monitor): same idea with `Up`, `C`, `Down` — on a portrait monitor `Ctrl+Win+C` automatically picks the row 1/3.
+- Need to force the opposite of what auto picks? Use `Ctrl+Win+H` (column) or `Ctrl+Win+V` (row) explicitly.
 
 ---
 

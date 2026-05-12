@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.1 — 2026-05-12
+
+### Changed
+- `Ctrl+Win+C` is now **orientation-aware**: on a landscape monitor it snaps to the center column 1/3 (previous behavior); on a portrait monitor it snaps to the middle row 1/3. One key, the right thing on either monitor.
+
+### Added
+- `Ctrl+Win+H` — force center column 1/3 regardless of monitor orientation (for landscape-style 3-column layouts on a portrait monitor).
+
+### Notes
+- `Ctrl+Win+V` is unchanged — still forces the middle row 1/3 (for portrait-style 3-row layouts on a landscape monitor).
+
 ## v0.1.0 — 2026-05-12
 
 Initial release.
