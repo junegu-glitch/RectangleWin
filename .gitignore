@@ -1,0 +1,7 @@
+*.exe
+build/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+*.log
