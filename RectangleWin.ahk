@@ -18,6 +18,25 @@ global LastStep  := 0     ; 0,1,2  -> 1/2, 1/3, 2/3
 global UndoMap   := Map() ; hwnd -> {x,y,w,h}
 global SnapState := Map() ; hwnd -> {kind, step}  -- preserved across monitor jumps
 
+; Periodic GC of state Maps so closed windows don't linger as entries.
+SetTimer(CleanUpStateMaps, 60000)
+
+CleanUpStateMaps() {
+    local toDelete := []
+    for h in UndoMap
+        if !WinExist("ahk_id " h)
+            toDelete.Push(h)
+    for _, h in toDelete
+        UndoMap.Delete(h)
+
+    toDelete := []
+    for h in SnapState
+        if !WinExist("ahk_id " h)
+            toDelete.Push(h)
+    for _, h in toDelete
+        SnapState.Delete(h)
+}
+
 ; ---- Diagnostic logging (off by default; flip to true to capture a trace) ----
 global DebugLog := false
 global DebugLogPath := EnvGet("LOCALAPPDATA") "\RectangleWin\debug.log"
@@ -90,19 +109,20 @@ GetActiveHwnd() {
     }
 }
 
-GetMonitorOf(hwnd) {
-    ; returns monitor index whose work area contains the window's center.
-    if !hwnd
-        return MonitorGetPrimary()
-    WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
-    cx := x + w // 2
-    cy := y + h // 2
+GetMonitorAt(cx, cy) {
     Loop MonitorGetCount() {
         MonitorGet(A_Index, &L, &T, &R, &B)
         if (cx >= L && cx < R && cy >= T && cy < B)
             return A_Index
     }
     return MonitorGetPrimary()
+}
+
+GetMonitorOf(hwnd) {
+    if !hwnd
+        return MonitorGetPrimary()
+    WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+    return GetMonitorAt(x + w // 2, y + h // 2)
 }
 
 GetWorkAreaOf(hwnd) {
@@ -131,21 +151,25 @@ Snap(hwnd, x, y, w, h) {
             WinRestore("ahk_id " hwnd)
     }
 
-    ; Force per-monitor-aware V2 on this thread so coordinates we pass are
-    ; interpreted as physical pixels regardless of the source/target monitor's
-    ; DPI context. -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2.
+    ; Force per-monitor-aware V2 on this thread so coordinates are interpreted
+    ; as physical pixels regardless of source/target monitor's DPI context.
+    ; -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2.
     prev := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
 
-    ; Two-step move bypasses OS auto-rescale on cross-DPI monitor jumps:
-    ;   step 1: move with current size so the window crosses to the target
-    ;           monitor; Windows fires WM_DPICHANGED, but we'll overwrite size
-    ;           in step 2 anyway.
-    ;   step 2: with the window already on the target monitor, resize to the
-    ;           final w x h entirely within the target monitor's DPI context.
-    WinGetPos(&cx, &cy, &cw, &ch, "ahk_id " hwnd)
-    if (cx != x || cy != y) {
-        WinMove(x, y, cw, ch, "ahk_id " hwnd)
-        Sleep(15)
+    ; Cross-monitor jumps trigger WM_DPICHANGED in the target application, which
+    ; may auto-rescale the window. We use a true two-step move only when the
+    ; jump is across monitors:
+    ;   step 1: WinMove with the FINAL (x, y, w, h). The app may corrupt size
+    ;           in response to WM_DPICHANGED.
+    ;   step 2: WinMove again with the SAME (x, y, w, h) — now that the window
+    ;           is already on the target monitor's DPI context, this overrides
+    ;           any corruption and is not intercepted by another DPI change.
+    ; Same-monitor snaps just do one WinMove (no overflow into adjacent monitor).
+    currentMon := GetMonitorOf(hwnd)
+    targetMon := GetMonitorAt(x + w // 2, y + h // 2)
+    if (currentMon != targetMon) {
+        WinMove(x, y, w, h, "ahk_id " hwnd)
+        Sleep(50)
     }
     WinMove(x, y, w, h, "ahk_id " hwnd)
 
@@ -445,25 +469,29 @@ FindAdjacentMonitor(currentIdx, direction) {
     cCx := (cL + cR) // 2
     cCy := (cT + cB) // 2
     bestIdx := currentIdx
-    bestDist := 0
+    bestDist := 0xFFFFFFFF
     Loop MonitorGetCount() {
         if (A_Index = currentIdx)
             continue
         MonitorGetWorkArea(A_Index, &L, &T, &R, &B)
         cx := (L + R) // 2
         cy := (T + B) // 2
-        d := 0
+        dx := Abs(cx - cCx)
+        dy := Abs(cy - cCy)
+        d := -1
+        ; Heavily penalize displacement in the orthogonal axis so an L-shape
+        ; setup doesn't pick a far-away diagonal monitor as the U/D/L/R target.
         switch direction {
             case "L": if (cx < cCx)
-                d := cCx - cx
+                d := (cCx - cx) + dy * 2
             case "R": if (cx > cCx)
-                d := cx - cCx
+                d := (cx - cCx) + dy * 2
             case "U": if (cy < cCy)
-                d := cCy - cy
+                d := (cCy - cy) + dx * 2
             case "D": if (cy > cCy)
-                d := cy - cCy
+                d := (cy - cCy) + dx * 2
         }
-        if (d > 0 && (bestDist = 0 || d < bestDist)) {
+        if (d >= 0 && d < bestDist) {
             bestDist := d
             bestIdx := A_Index
         }

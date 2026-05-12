@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.5 — 2026-05-12
+
+### Fixed
+- **Same-monitor snaps no longer bounce windows to a different monitor.** v0.1.4's two-step move used the *old* window size at the *new* position for step 1. If the window was large (e.g. recently dragged from a 4K monitor), placing it at a new position on the FHD monitor caused the window rectangle to span both monitors, with the majority of the area on the wrong monitor. Windows' `MonitorFromRect` then reassigned the window to that monitor, triggering a spurious `WM_DPICHANGED` and the app jumped. New logic: the two-step move is only used when source and target monitors actually differ, and both steps use the final `(x, y, w, h)` — never the current size.
+- **L-shape multi-monitor setups now navigate correctly.** `FindAdjacentMonitor` previously compared monitor center coordinates on a single axis, which could pick a far-away diagonal monitor as the "U/D/L/R" target. Now displacement in the orthogonal axis is penalized 2×, so monitors that are spatially aligned with the current one are preferred.
+
+### Changed
+- Per-hwnd state Maps (`UndoMap`, `SnapState`) are now garbage-collected every 60 seconds to drop entries for closed windows.
+
+### Credits
+- Diagnosis and patches reviewed by Gemini.
+
 ## v0.1.4 — 2026-05-12
 
 ### Fixed
