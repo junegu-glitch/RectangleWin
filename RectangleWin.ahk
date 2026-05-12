@@ -38,7 +38,7 @@ ShowHelp() {
         . "Ctrl+Win+H        Center column 1/3 (force, for 3-column layout)`n"
         . "Ctrl+Win+V        Middle row 1/3 (force, for 3-row layout)`n"
         . "Ctrl+Win+Numpad 7/9/1/3   Quarter corners`n"
-        . "Ctrl+Win+Shift+Left/Right Move to prev/next monitor`n"
+        . "Ctrl+Win+Shift+Arrows    Move to monitor in that direction`n"
         . "Ctrl+Win+Z        Undo last snap`n"
         . "Ctrl+Win+T        Toggle Always-on-Top`n"
         , "RectangleWin")
@@ -331,6 +331,7 @@ MoveToMonitor(direction) {
 FindAdjacentMonitor(currentIdx, direction) {
     MonitorGetWorkArea(currentIdx, &cL, &cT, &cR, &cB)
     cCx := (cL + cR) // 2
+    cCy := (cT + cB) // 2
     bestIdx := currentIdx
     bestDist := 0
     Loop MonitorGetCount() {
@@ -338,18 +339,21 @@ FindAdjacentMonitor(currentIdx, direction) {
             continue
         MonitorGetWorkArea(A_Index, &L, &T, &R, &B)
         cx := (L + R) // 2
-        if (direction = "R" && cx > cCx) {
-            d := cx - cCx
-            if (bestDist = 0 || d < bestDist) {
-                bestDist := d
-                bestIdx := A_Index
-            }
-        } else if (direction = "L" && cx < cCx) {
-            d := cCx - cx
-            if (bestDist = 0 || d < bestDist) {
-                bestDist := d
-                bestIdx := A_Index
-            }
+        cy := (T + B) // 2
+        d := 0
+        switch direction {
+            case "L": if (cx < cCx)
+                d := cCx - cx
+            case "R": if (cx > cCx)
+                d := cx - cCx
+            case "U": if (cy < cCy)
+                d := cCy - cy
+            case "D": if (cy > cCy)
+                d := cy - cCy
+        }
+        if (d > 0 && (bestDist = 0 || d < bestDist)) {
+            bestDist := d
+            bestIdx := A_Index
         }
     }
     return bestIdx
@@ -357,6 +361,8 @@ FindAdjacentMonitor(currentIdx, direction) {
 
 ActMoveMonitorLeft(*)  => MoveToMonitor("L")
 ActMoveMonitorRight(*) => MoveToMonitor("R")
+ActMoveMonitorUp(*)    => MoveToMonitor("U")
+ActMoveMonitorDown(*)  => MoveToMonitor("D")
 
 ; ============================================================
 ;  Hotkeys (Ctrl = ^, Win = #, Shift = +)
@@ -378,6 +384,8 @@ ActMoveMonitorRight(*) => MoveToMonitor("R")
 
 ^#+Left::      ActMoveMonitorLeft()
 ^#+Right::     ActMoveMonitorRight()
+^#+Up::        ActMoveMonitorUp()
+^#+Down::      ActMoveMonitorDown()
 
 ^#z::          ActUndo()
 ^#t::          ActToggleAlwaysOnTop()

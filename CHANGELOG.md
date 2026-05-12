@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.2 — 2026-05-12
+
+### Added
+- `Ctrl+Win+Shift+Up` / `Ctrl+Win+Shift+Down` — move window to the monitor above / below the current one. Useful for vertically-stacked monitor setups (laptop + external display on top, etc.).
+
+### Changed
+- Monitor-jump shortcuts are now described as directional ("the monitor on the left/right/above/below"), not "previous/next". Behavior of the existing left/right shortcuts is unchanged — it was already position-based.
+
 ## v0.1.1 — 2026-05-12
 
 ### Changed

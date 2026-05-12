@@ -76,8 +76,12 @@ All shortcuts use `Ctrl+Win` as the base modifier. Snapping respects the work ar
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Win+Shift+Left` | Move window to the previous monitor (preserves size ratio) |
-| `Ctrl+Win+Shift+Right` | Move window to the next monitor |
+| `Ctrl+Win+Shift+Left` | Move window to the monitor on the left (preserves size ratio) |
+| `Ctrl+Win+Shift+Right` | Move window to the monitor on the right |
+| `Ctrl+Win+Shift+Up` | Move window to the monitor above |
+| `Ctrl+Win+Shift+Down` | Move window to the monitor below |
+
+If no monitor exists in that direction, nothing happens.
 
 ### Utility
 
