@@ -16,6 +16,7 @@ global LastDir   := ""    ; "L", "R", "U", "D"
 global LastHwnd  := 0
 global LastStep  := 0     ; 0,1,2  -> 1/2, 1/3, 2/3
 global UndoMap   := Map() ; hwnd -> {x,y,w,h}
+global SnapState := Map() ; hwnd -> {kind, step}  -- preserved across monitor jumps
 
 A_IconTip := "RectangleWin"
 TraySetIcon("imageres.dll", 109)
@@ -144,6 +145,7 @@ ActFullscreen(*) {
     ResetCycle()
     wa := GetWorkAreaOf(hwnd)
     Snap(hwnd, wa.L, wa.T, wa.W, wa.H)
+    SnapState[hwnd] := { kind: "Full", step: 0 }
 }
 
 ActLeft(*) {
@@ -154,6 +156,7 @@ ActLeft(*) {
     frac := StepFraction(step)
     wa := GetWorkAreaOf(hwnd)
     Snap(hwnd, wa.L, wa.T, Round(wa.W * frac), wa.H)
+    SnapState[hwnd] := { kind: "L", step: step }
 }
 
 ActRight(*) {
@@ -165,6 +168,7 @@ ActRight(*) {
     wa := GetWorkAreaOf(hwnd)
     w := Round(wa.W * frac)
     Snap(hwnd, wa.R - w, wa.T, w, wa.H)
+    SnapState[hwnd] := { kind: "R", step: step }
 }
 
 ActUp(*) {
@@ -175,6 +179,7 @@ ActUp(*) {
     frac := StepFraction(step)
     wa := GetWorkAreaOf(hwnd)
     Snap(hwnd, wa.L, wa.T, wa.W, Round(wa.H * frac))
+    SnapState[hwnd] := { kind: "U", step: step }
 }
 
 ActDown(*) {
@@ -186,6 +191,7 @@ ActDown(*) {
     wa := GetWorkAreaOf(hwnd)
     h := Round(wa.H * frac)
     Snap(hwnd, wa.L, wa.B - h, wa.W, h)
+    SnapState[hwnd] := { kind: "D", step: step }
 }
 
 DoCenterColumn(hwnd, wa) {
@@ -209,6 +215,7 @@ ActCenterAuto(*) {
         DoCenterColumn(hwnd, wa)
     else
         DoCenterRow(hwnd, wa)
+    SnapState[hwnd] := { kind: "CenterAuto", step: 0 }
 }
 
 ; Force center column 1/3 (for 3-column layouts), regardless of orientation.
@@ -218,6 +225,7 @@ ActCenterColumn(*) {
         return
     ResetCycle()
     DoCenterColumn(hwnd, GetWorkAreaOf(hwnd))
+    SnapState[hwnd] := { kind: "CenterCol", step: 0 }
 }
 
 ; Force middle row 1/3 (for 3-row layouts), regardless of orientation.
@@ -227,6 +235,7 @@ ActMiddleRow(*) {
         return
     ResetCycle()
     DoCenterRow(hwnd, GetWorkAreaOf(hwnd))
+    SnapState[hwnd] := { kind: "CenterRow", step: 0 }
 }
 
 ActCornerTL(*) {
@@ -236,6 +245,7 @@ ActCornerTL(*) {
     ResetCycle()
     wa := GetWorkAreaOf(hwnd)
     Snap(hwnd, wa.L, wa.T, wa.W // 2, wa.H // 2)
+    SnapState[hwnd] := { kind: "TL", step: 0 }
 }
 
 ActCornerTR(*) {
@@ -246,6 +256,7 @@ ActCornerTR(*) {
     wa := GetWorkAreaOf(hwnd)
     w := wa.W // 2
     Snap(hwnd, wa.R - w, wa.T, w, wa.H // 2)
+    SnapState[hwnd] := { kind: "TR", step: 0 }
 }
 
 ActCornerBL(*) {
@@ -256,6 +267,7 @@ ActCornerBL(*) {
     wa := GetWorkAreaOf(hwnd)
     h := wa.H // 2
     Snap(hwnd, wa.L, wa.B - h, wa.W // 2, h)
+    SnapState[hwnd] := { kind: "BL", step: 0 }
 }
 
 ActCornerBR(*) {
@@ -267,6 +279,7 @@ ActCornerBR(*) {
     w := wa.W // 2
     h := wa.H // 2
     Snap(hwnd, wa.R - w, wa.B - h, w, h)
+    SnapState[hwnd] := { kind: "BR", step: 0 }
 }
 
 ActUndo(*) {
@@ -277,6 +290,8 @@ ActUndo(*) {
         return
     p := UndoMap[hwnd]
     UndoMap.Delete(hwnd)
+    if SnapState.Has(hwnd)
+        SnapState.Delete(hwnd)
     try {
         state := WinGetMinMax("ahk_id " hwnd)
         if (state != 0)
@@ -293,38 +308,83 @@ ActToggleAlwaysOnTop(*) {
     WinSetAlwaysOnTop(-1, "ahk_id " hwnd)
 }
 
-; ---- Move to adjacent monitor preserving ratio within work area ----
+; ---- Apply a recorded snap state on a given work area ----
+ApplySnapState(hwnd, wa, state) {
+    switch state.kind {
+        case "Full":
+            Snap(hwnd, wa.L, wa.T, wa.W, wa.H)
+        case "L":
+            frac := StepFraction(state.step)
+            Snap(hwnd, wa.L, wa.T, Round(wa.W * frac), wa.H)
+        case "R":
+            frac := StepFraction(state.step)
+            w := Round(wa.W * frac)
+            Snap(hwnd, wa.R - w, wa.T, w, wa.H)
+        case "U":
+            frac := StepFraction(state.step)
+            Snap(hwnd, wa.L, wa.T, wa.W, Round(wa.H * frac))
+        case "D":
+            frac := StepFraction(state.step)
+            h := Round(wa.H * frac)
+            Snap(hwnd, wa.L, wa.B - h, wa.W, h)
+        case "CenterAuto":
+            if (wa.W >= wa.H)
+                DoCenterColumn(hwnd, wa)
+            else
+                DoCenterRow(hwnd, wa)
+        case "CenterCol":
+            DoCenterColumn(hwnd, wa)
+        case "CenterRow":
+            DoCenterRow(hwnd, wa)
+        case "TL":
+            Snap(hwnd, wa.L, wa.T, wa.W // 2, wa.H // 2)
+        case "TR":
+            w := wa.W // 2
+            Snap(hwnd, wa.R - w, wa.T, w, wa.H // 2)
+        case "BL":
+            h := wa.H // 2
+            Snap(hwnd, wa.L, wa.B - h, wa.W // 2, h)
+        case "BR":
+            w := wa.W // 2
+            h := wa.H // 2
+            Snap(hwnd, wa.R - w, wa.B - h, w, h)
+    }
+}
+
+; ---- Move to adjacent monitor: re-apply recorded snap state on target ----
 MoveToMonitor(direction) {
     hwnd := GetActiveHwnd()
     if !hwnd
         return
-    count := MonitorGetCount()
-    if (count < 2)
+    if (MonitorGetCount() < 2)
         return
-    src := GetWorkAreaOf(hwnd)
-    WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
-    ; ratio within source work area
-    rx := (x - src.L) / src.W
-    ry := (y - src.T) / src.H
-    rw := w / src.W
-    rh := h / src.H
-    ; find target monitor by x-position
-    targetIdx := FindAdjacentMonitor(src.N, direction)
-    if (targetIdx = src.N)
+
+    srcIdx := GetMonitorOf(hwnd)
+    targetIdx := FindAdjacentMonitor(srcIdx, direction)
+    if (targetIdx = srcIdx)
         return
+
     MonitorGetWorkArea(targetIdx, &L, &T, &R, &B)
-    tW := R - L, tH := B - T
-    newX := Round(L + rx * tW)
-    newY := Round(T + ry * tH)
-    newW := Round(rw * tW)
-    newH := Round(rh * tH)
-    SaveUndo(hwnd)
-    try {
-        state := WinGetMinMax("ahk_id " hwnd)
-        if (state != 0)
-            WinRestore("ahk_id " hwnd)
+    wa := { L: L, T: T, R: R, B: B, W: R - L, H: B - T, N: targetIdx }
+
+    if SnapState.Has(hwnd) {
+        ; Re-apply the same logical snap on the target monitor's work area.
+        ; Independent of DPI / DWM borders / taskbar — no ratio drift.
+        ApplySnapState(hwnd, wa, SnapState[hwnd])
+    } else {
+        ; No recorded snap state (user moved/resized manually): keep size,
+        ; place at the target monitor's center.
+        WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+        newX := wa.L + (wa.W - w) // 2
+        newY := wa.T + (wa.H - h) // 2
+        SaveUndo(hwnd)
+        try {
+            state := WinGetMinMax("ahk_id " hwnd)
+            if (state != 0)
+                WinRestore("ahk_id " hwnd)
+        }
+        WinMove(newX, newY, w, h, "ahk_id " hwnd)
     }
-    WinMove(newX, newY, newW, newH, "ahk_id " hwnd)
     ResetCycle()
 }
 

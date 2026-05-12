@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.3 — 2026-05-12
+
+### Fixed
+- **Snap state is now preserved across monitor jumps.** Previously, moving a window between monitors used a ratio-based mapping (window position/size as a fraction of the source work area, re-applied on the target). On setups with different DPI scales (e.g. portrait FHD ↔ landscape 4K), DWM invisible borders, or taskbar differences, this produced visible drift — a top-half window would become top 2/3, and repeated jumps compounded the error.
+- The new behavior records the logical snap (e.g. `top half`, `left 1/3`, `bottom-right quarter`) when a snap shortcut is pressed, and re-applies that same logical snap on the target monitor's work area. Result: top-half stays top-half regardless of DPI or aspect ratio differences, with no compounding drift across repeated jumps.
+- If a window has no recorded snap state (e.g. user dragged it manually), the monitor-jump now keeps its size and places it at the target monitor's center instead of trying to scale it.
+
 ## v0.1.2 — 2026-05-12
 
 ### Added
