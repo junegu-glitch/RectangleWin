@@ -18,6 +18,32 @@ global LastStep  := 0     ; 0,1,2  -> 1/2, 1/3, 2/3
 global UndoMap   := Map() ; hwnd -> {x,y,w,h}
 global SnapState := Map() ; hwnd -> {kind, step}  -- preserved across monitor jumps
 
+; ---- Diagnostic logging (off by default; flip to true to capture a trace) ----
+global DebugLog := false
+global DebugLogPath := EnvGet("LOCALAPPDATA") "\RectangleWin\debug.log"
+
+Log(msg) {
+    if !DebugLog
+        return
+    SplitPath(DebugLogPath, , &dir)
+    if !DirExist(dir)
+        DirCreate(dir)
+    try FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") "." A_MSec " | " msg "`n", DebugLogPath)
+}
+
+LogWin(tag, hwnd) {
+    if !DebugLog
+        return
+    try {
+        WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+        monIdx := GetMonitorOf(hwnd)
+        MonitorGetWorkArea(monIdx, &L, &T, &R, &B)
+        state := SnapState.Has(hwnd) ? SnapState[hwnd].kind "/" SnapState[hwnd].step : "-"
+        Log(Format("{} hwnd=0x{:X} mon={} wa=({},{} {}x{}) win=({},{} {}x{}) state={}",
+            tag, hwnd, monIdx, L, T, R - L, B - T, x, y, w, h, state))
+    }
+}
+
 A_IconTip := "RectangleWin"
 TraySetIcon("imageres.dll", 109)
 
@@ -96,13 +122,38 @@ Snap(hwnd, x, y, w, h) {
     if !hwnd
         return
     SaveUndo(hwnd)
-    ; ensure restored from maximized/minimized
+    LogWin("Snap.before", hwnd)
+
+    ; Restore from min/max so WinMove can resize.
     try {
         state := WinGetMinMax("ahk_id " hwnd)
         if (state != 0)
             WinRestore("ahk_id " hwnd)
     }
+
+    ; Force per-monitor-aware V2 on this thread so coordinates we pass are
+    ; interpreted as physical pixels regardless of the source/target monitor's
+    ; DPI context. -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2.
+    prev := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
+
+    ; Two-step move bypasses OS auto-rescale on cross-DPI monitor jumps:
+    ;   step 1: move with current size so the window crosses to the target
+    ;           monitor; Windows fires WM_DPICHANGED, but we'll overwrite size
+    ;           in step 2 anyway.
+    ;   step 2: with the window already on the target monitor, resize to the
+    ;           final w x h entirely within the target monitor's DPI context.
+    WinGetPos(&cx, &cy, &cw, &ch, "ahk_id " hwnd)
+    if (cx != x || cy != y) {
+        WinMove(x, y, cw, ch, "ahk_id " hwnd)
+        Sleep(15)
+    }
     WinMove(x, y, w, h, "ahk_id " hwnd)
+
+    if prev
+        DllCall("SetThreadDpiAwarenessContext", "ptr", prev, "ptr")
+
+    LogWin("Snap.after", hwnd)
+    Log(Format("Snap.requested x={} y={} w={} h={}", x, y, w, h))
 }
 
 SetCycle(dir, hwnd) {
@@ -367,24 +418,25 @@ MoveToMonitor(direction) {
     MonitorGetWorkArea(targetIdx, &L, &T, &R, &B)
     wa := { L: L, T: T, R: R, B: B, W: R - L, H: B - T, N: targetIdx }
 
+    LogWin("MoveToMonitor.before", hwnd)
+    Log(Format("MoveToMonitor dir={} src={} tgt={} tgtWa=({},{} {}x{})",
+        direction, srcIdx, targetIdx, wa.L, wa.T, wa.W, wa.H))
+
     if SnapState.Has(hwnd) {
         ; Re-apply the same logical snap on the target monitor's work area.
-        ; Independent of DPI / DWM borders / taskbar — no ratio drift.
+        ; Snap() already handles DPI quirks via two-step move + PMA-v2 context.
         ApplySnapState(hwnd, wa, SnapState[hwnd])
     } else {
-        ; No recorded snap state (user moved/resized manually): keep size,
-        ; place at the target monitor's center.
+        ; No recorded snap state (user moved/resized manually): keep current
+        ; size, place at the target monitor's center. Route through Snap() so
+        ; the same DPI-safe two-step move is used.
         WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
         newX := wa.L + (wa.W - w) // 2
         newY := wa.T + (wa.H - h) // 2
-        SaveUndo(hwnd)
-        try {
-            state := WinGetMinMax("ahk_id " hwnd)
-            if (state != 0)
-                WinRestore("ahk_id " hwnd)
-        }
-        WinMove(newX, newY, w, h, "ahk_id " hwnd)
+        Snap(hwnd, newX, newY, w, h)
     }
+
+    LogWin("MoveToMonitor.after", hwnd)
     ResetCycle()
 }
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.4 — 2026-05-12
+
+### Fixed
+- **Cross-monitor jumps now work across any DPI / orientation / monitor-count combination.** v0.1.3 introduced the correct architectural fix (re-apply the logical snap on the target monitor's work area instead of mapping ratios), but the low-level `WinMove` call was still being silently overridden by Windows' automatic `WM_DPICHANGED` rescale whenever the source and target monitors had different DPI scaling. The result was that a top-half window on a 100% monitor became a top-2/3 window after jumping to a 150% monitor (exactly the DPI ratio). This release fixes the underlying `Snap` primitive:
+  - Forces per-monitor-aware V2 thread context (`SetThreadDpiAwarenessContext(-4)`) around every move/resize so all coordinates are interpreted as physical pixels.
+  - Uses a two-step move when crossing monitors: first move the window with its current size so it crosses the DPI boundary, then resize on the target monitor's DPI context. The OS no longer gets a chance to scale our requested width/height.
+- The fix is general: it doesn't assume a specific DPI ratio, monitor count, or orientation. Single-monitor users see no change (the second `WinMove` is a no-op when the position is unchanged from the source).
+
+### Added (internal, off by default)
+- Diagnostic logging via `DebugLog := true` flag at the top of the script. When enabled, every snap and monitor jump is recorded to `%LOCALAPPDATA%\RectangleWin\debug.log` with hwnd, monitor index, work area, and window rect. Off in releases; useful for troubleshooting reports.
+
 ## v0.1.3 — 2026-05-12
 
 ### Fixed
