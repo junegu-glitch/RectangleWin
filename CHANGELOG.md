@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.6 — 2026-05-12
+
+### Reverted
+- The `SetThreadDpiAwarenessContext(-4)` calls and the two-step `WinMove` block added in v0.1.4 / v0.1.5. They were intended to fix cross-DPI monitor jumps but instead caused worse regressions on real hardware (windows landing outside the target monitor; same-monitor up/down snaps bouncing the window around). The `Snap()` primitive is back to the v0.1.3 form: `SaveUndo` → optionally `WinRestore` → one `WinMove`. AHK's process manifest is already per-monitor-aware V2; explicit per-thread tampering was doing more harm than good.
+
+### Kept (from v0.1.5)
+- Cleaner `GetMonitorAt(cx, cy)` helper separated from `GetMonitorOf(hwnd)`.
+- `FindAdjacentMonitor` with 2× orthogonal-axis penalty for L-shape and asymmetric multi-monitor setups.
+- Periodic `CleanUpStateMaps` timer (every 60s) to drop entries for closed windows from `UndoMap` / `SnapState`.
+- The full v0.1.3 logical-snap-state architecture (`SnapState` map + `ApplySnapState`) so snap state is preserved across same-DPI monitor jumps.
+
+### Known limitations
+- Cross-monitor jumps between displays with **different DPI scaling** may distort window size by the DPI ratio. Same-monitor snaps and same-DPI cross-monitor jumps work correctly. A proper fix using raw `SetWindowPos` is planned.
+
 ## v0.1.5 — 2026-05-12
 
 ### Fixed

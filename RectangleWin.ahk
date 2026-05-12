@@ -143,39 +143,12 @@ Snap(hwnd, x, y, w, h) {
         return
     SaveUndo(hwnd)
     LogWin("Snap.before", hwnd)
-
-    ; Restore from min/max so WinMove can resize.
     try {
         state := WinGetMinMax("ahk_id " hwnd)
         if (state != 0)
             WinRestore("ahk_id " hwnd)
     }
-
-    ; Force per-monitor-aware V2 on this thread so coordinates are interpreted
-    ; as physical pixels regardless of source/target monitor's DPI context.
-    ; -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2.
-    prev := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
-
-    ; Cross-monitor jumps trigger WM_DPICHANGED in the target application, which
-    ; may auto-rescale the window. We use a true two-step move only when the
-    ; jump is across monitors:
-    ;   step 1: WinMove with the FINAL (x, y, w, h). The app may corrupt size
-    ;           in response to WM_DPICHANGED.
-    ;   step 2: WinMove again with the SAME (x, y, w, h) — now that the window
-    ;           is already on the target monitor's DPI context, this overrides
-    ;           any corruption and is not intercepted by another DPI change.
-    ; Same-monitor snaps just do one WinMove (no overflow into adjacent monitor).
-    currentMon := GetMonitorOf(hwnd)
-    targetMon := GetMonitorAt(x + w // 2, y + h // 2)
-    if (currentMon != targetMon) {
-        WinMove(x, y, w, h, "ahk_id " hwnd)
-        Sleep(50)
-    }
     WinMove(x, y, w, h, "ahk_id " hwnd)
-
-    if prev
-        DllCall("SetThreadDpiAwarenessContext", "ptr", prev, "ptr")
-
     LogWin("Snap.after", hwnd)
     Log(Format("Snap.requested x={} y={} w={} h={}", x, y, w, h))
 }

@@ -81,7 +81,7 @@ All shortcuts use `Ctrl+Win` as the base modifier. Snapping respects the work ar
 | `Ctrl+Win+Shift+Up` | Move window to the monitor above |
 | `Ctrl+Win+Shift+Down` | Move window to the monitor below |
 
-If no monitor exists in that direction, nothing happens. The window's snap state (left half, top third, fullscreen, etc.) is preserved across monitors — even when source and target have different sizes, DPI, or orientation.
+If no monitor exists in that direction, nothing happens. The window's snap state (left half, top third, fullscreen, etc.) is preserved across monitors of the same DPI scaling. **Known limitation**: jumping between monitors with different DPI scaling (e.g. 100% ↔ 150%) may distort window size by the DPI ratio — being worked on.
 
 ### Utility
 
