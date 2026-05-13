@@ -143,12 +143,37 @@ Snap(hwnd, x, y, w, h) {
         return
     SaveUndo(hwnd)
     LogWin("Snap.before", hwnd)
+
     try {
         state := WinGetMinMax("ahk_id " hwnd)
         if (state != 0)
             WinRestore("ahk_id " hwnd)
     }
+
+    currentMon := GetMonitorOf(hwnd)
+    targetMon := GetMonitorAt(x + w // 2, y + h // 2)
+
+    ; Step 1: initial move. If crossing monitors, this triggers WM_DPICHANGED
+    ; in the target app, which may auto-rescale dimensions to the new DPI.
     WinMove(x, y, w, h, "ahk_id " hwnd)
+
+    ; Step 2: cross-monitor DPI correction. After the app's message loop has
+    ; processed WM_DPICHANGED, override with our exact rectangle via raw
+    ; SetWindowPos. SWP_NOSENDCHANGING blocks the window proc from rejecting
+    ; our size via WM_WINDOWPOSCHANGING. SWP_NOCOPYBITS forces a clean redraw
+    ; rather than stretching old-DPI pixels.
+    if (currentMon != targetMon) {
+        Sleep(50)
+        SWP_NOZORDER       := 0x0004
+        SWP_NOACTIVATE     := 0x0010
+        SWP_NOCOPYBITS     := 0x0100
+        SWP_NOSENDCHANGING := 0x0400
+        DllCall("SetWindowPos",
+            "ptr", hwnd, "ptr", 0,
+            "int", x, "int", y, "int", w, "int", h,
+            "uint", SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_NOSENDCHANGING)
+    }
+
     LogWin("Snap.after", hwnd)
     Log(Format("Snap.requested x={} y={} w={} h={}", x, y, w, h))
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.7 — 2026-05-12
+
+### Fixed
+- **Cross-DPI monitor jumps now preserve window size correctly.** Previously, moving a window between monitors with different DPI scaling (e.g. 100% ↔ 150%) caused the size to be distorted by the DPI ratio (a "top half" snap became "top 2/3" going 100%→150%). The fix: after the initial `WinMove` (which triggers `WM_DPICHANGED` on the target app and may cause auto-rescaling), wait 50ms for the message loop to settle and then enforce the exact rectangle via raw `SetWindowPos` with `SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_NOZORDER | SWP_NOACTIVATE`. Bypasses both AHK's coordinate wrapper and the target window proc's chance to override our size.
+- Same-monitor snaps and same-DPI cross-monitor jumps are unchanged from v0.1.6 (no behavior regression). The two previous DPI fix attempts (v0.1.4 / v0.1.5) regressed because they tampered with the hotkey thread's DPI awareness context, which conflicted with AHK's internal coordinate handling. v0.1.7 leaves thread DPI alone and only intervenes after the move on cross-monitor jumps.
+- `SWP_NOCOPYBITS` also eliminates the brief visual stretching of old-DPI pixels during the transition.
+
+### Credits
+- Hypothesis pre-review and final patch validation by Gemini.
+
 ## v0.1.6 — 2026-05-12
 
 ### Reverted
