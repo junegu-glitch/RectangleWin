@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0 — 2026-05-12
+
+### Added
+- **One-line installer** (`install.ps1`). Users can now install RectangleWin with a single PowerShell command — it auto-installs AutoHotkey v2 (via winget) if missing, downloads the latest script, registers it in the Startup folder, and launches it. No admin required.
+- **One-line uninstaller** (`uninstall.ps1`) — stops the running script, removes the autostart shortcut, and clears the install folder.
+- README rewritten to lead with the one-liner; manual install is now the "if you'd rather do it yourself" path.
+
+### Notes
+- Functionality is unchanged from v0.1.7. v0.2.0 is purely a packaging / install-UX release.
+- A standalone `.exe` build was considered but deferred: Windows Defender flags AutoHotkey's Ahk2Exe compiler as a potential threat (a common false positive for script-compilation tools), so reliably producing one without a code-signing cert is impractical right now. The PowerShell one-liner provides the same "frictionless install" goal without that friction.
+
 ## v0.1.7 — 2026-05-12
 
 ### Fixed

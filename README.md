@@ -29,20 +29,28 @@ FancyZones is great if you want to define custom zones with the mouse. Rectangle
 
 ## Install
 
-### Option A — Run the `.ahk` (recommended)
+### One-line installer (recommended)
+
+Paste this into PowerShell. It installs AutoHotkey v2 (via winget) if you don't have it, downloads the script to `%LOCALAPPDATA%\RectangleWin`, registers it for autostart, and launches it. No admin needed.
+
+```powershell
+iex (irm https://raw.githubusercontent.com/junegu-glitch/RectangleWin/main/install.ps1)
+```
+
+To uninstall later:
+
+```powershell
+iex (irm https://raw.githubusercontent.com/junegu-glitch/RectangleWin/main/uninstall.ps1)
+```
+
+### Manual install
+
+If you'd rather do it yourself:
 
 1. Install [AutoHotkey v2](https://www.autohotkey.com/) (2.0 or later).
-2. Download [`RectangleWin.ahk`](RectangleWin.ahk) from this repo.
+2. Download [`RectangleWin.ahk`](RectangleWin.ahk).
 3. Double-click it. Look for the RectangleWin icon in your system tray.
-
-### Option B — Autostart on boot
-
-After Option A, register it in the Startup folder:
-
-1. Press `Win+R`, type `shell:startup`, hit Enter.
-2. Drop a shortcut to `RectangleWin.ahk` (or to `AutoHotkey64.exe "<path>\RectangleWin.ahk"`) into that folder.
-
-A standalone `.exe` build is planned for v0.2.0.
+4. For autostart: press `Win+R`, type `shell:startup`, and drop a shortcut to `RectangleWin.ahk` in there.
 
 ---
 
@@ -113,10 +121,9 @@ It's a single AutoHotkey v2 file — open `RectangleWin.ahk` in any text editor 
 
 ## Roadmap
 
-- v0.2.0 — Pre-built `.exe` (Ahk2Exe), so no AutoHotkey install required
-- v0.2.x — Layout presets (save/restore arrangements of windows)
+- v0.3.0 — Layout presets (save/restore arrangements of windows)
 - v0.3.x — Window transparency hotkeys, virtual desktop move
-- Later — winget package, customizable config file
+- Later — winget package, signed standalone `.exe`, customizable config file
 
 Suggestions welcome — open an issue.
 
