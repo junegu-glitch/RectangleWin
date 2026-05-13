@@ -97,6 +97,9 @@ If no monitor exists in that direction, nothing happens. The window's snap state
 |---|---|
 | `Ctrl+Win+Z` | Undo last snap (restore previous position/size) |
 | `Ctrl+Win+T` | Toggle Always-on-Top |
+| `Ctrl+Win+O` | Cycle window opacity: 100% → 80% → 60% → 100% |
+| `Ctrl+Win+G` | Center window on current monitor without resizing (keep current size) |
+| `Ctrl+Win+P` | Pull window to the monitor under the mouse cursor (snap state preserved) |
 
 ### Tips
 

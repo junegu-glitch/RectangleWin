@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 — 2026-05-12
+
+### Added
+- **`Ctrl+Win+O`** — Cycle window opacity: 100% → 80% → 60% → 100%. Useful for keeping an auxiliary window visible without occluding the main work area (video PIP, reference docs over a game, etc.).
+- **`Ctrl+Win+G`** — Center the active window on its current monitor *without* resizing. Distinct from `Ctrl+Win+C` (Smart Center), which resizes to a 1/3 strip.
+- **`Ctrl+Win+P`** — Pull the active window to the monitor under the mouse cursor. Snap state is preserved (e.g. a "right half" window stays "right half" on the target monitor). Useful when you want a window where your attention already is, without thinking about direction keys.
+
+### Fixed
+- `MouseGetPos` is now explicitly set to screen coordinates (`CoordMode("Mouse", "Screen")`). AHK v2's default is client-relative, which made `Ctrl+Win+P` fail when the cursor was on a different monitor than the active window.
+
+### Internal
+- `OpacityState` map joins `UndoMap` and `SnapState` in the 60-second periodic cleanup.
+- `SnapState` now supports a `"Gravity"` kind so that `Ctrl+Win+G`'s "centered, size-preserved" intent survives a subsequent `Ctrl+Win+Shift+Arrow` monitor jump.
+
 ## v0.2.0 — 2026-05-12
 
 ### Added

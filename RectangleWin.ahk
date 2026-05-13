@@ -3,6 +3,7 @@
 Persistent
 SetWinDelay -1
 SetControlDelay -1
+CoordMode("Mouse", "Screen")   ; default is "Client"; we need physical screen coords
 
 ; ============================================================
 ;  RectangleWin - Keyboard window snapping for Windows
@@ -17,6 +18,8 @@ global LastHwnd  := 0
 global LastStep  := 0     ; 0,1,2  -> 1/2, 1/3, 2/3
 global UndoMap   := Map() ; hwnd -> {x,y,w,h}
 global SnapState := Map() ; hwnd -> {kind, step}  -- preserved across monitor jumps
+global OpacityState  := Map() ; hwnd -> step (0=100%, 1=80%, 2=60%)
+global OpacityLevels := [255, 204, 153]   ; per cycle step (step 0 uses "OFF")
 
 ; Periodic GC of state Maps so closed windows don't linger as entries.
 SetTimer(CleanUpStateMaps, 60000)
@@ -35,6 +38,13 @@ CleanUpStateMaps() {
             toDelete.Push(h)
     for _, h in toDelete
         SnapState.Delete(h)
+
+    toDelete := []
+    for h in OpacityState
+        if !WinExist("ahk_id " h)
+            toDelete.Push(h)
+    for _, h in toDelete
+        OpacityState.Delete(h)
 }
 
 ; ---- Diagnostic logging (off by default; flip to true to capture a trace) ----
@@ -87,6 +97,9 @@ ShowHelp() {
         . "Ctrl+Win+Shift+Arrows    Move to monitor in that direction`n"
         . "Ctrl+Win+Z        Undo last snap`n"
         . "Ctrl+Win+T        Toggle Always-on-Top`n"
+        . "Ctrl+Win+O        Cycle opacity (100% -> 80% -> 60%)`n"
+        . "Ctrl+Win+G        Center on current monitor (keep size)`n"
+        . "Ctrl+Win+P        Pull window to monitor under cursor`n"
         , "RectangleWin")
 }
 
@@ -381,6 +394,57 @@ ActToggleAlwaysOnTop(*) {
     WinSetAlwaysOnTop(-1, "ahk_id " hwnd)
 }
 
+; Cycle window opacity: 100% -> 80% -> 60% -> 100%
+ActOpacityCycle(*) {
+    hwnd := GetActiveHwnd()
+    if !hwnd
+        return
+    step := OpacityState.Has(hwnd) ? Mod(OpacityState[hwnd] + 1, 3) : 1
+    OpacityState[hwnd] := step
+    if (step = 0)
+        WinSetTransparent("OFF", "ahk_id " hwnd)
+    else
+        WinSetTransparent(OpacityLevels[step + 1], "ahk_id " hwnd)
+}
+
+; Center active window on its current monitor without resizing.
+ActCenterGravity(*) {
+    hwnd := GetActiveHwnd()
+    if !hwnd
+        return
+    ResetCycle()
+    wa := GetWorkAreaOf(hwnd)
+    WinGetPos(&_x, &_y, &w, &h, "ahk_id " hwnd)
+    if (w > wa.W)
+        w := wa.W
+    if (h > wa.H)
+        h := wa.H
+    Snap(hwnd, wa.L + (wa.W - w) // 2, wa.T + (wa.H - h) // 2, w, h)
+    SnapState[hwnd] := { kind: "Gravity", step: 0, w: w, h: h }
+}
+
+; Pull active window to the monitor currently under the mouse cursor,
+; preserving snap state if any.
+ActPullToCursor(*) {
+    hwnd := GetActiveHwnd()
+    if !hwnd
+        return
+    MouseGetPos(&mx, &my)
+    cursorMon := GetMonitorAt(mx, my)
+    currentMon := GetMonitorOf(hwnd)
+    if (cursorMon = currentMon)
+        return
+    MonitorGetWorkArea(cursorMon, &L, &T, &R, &B)
+    wa := { L: L, T: T, R: R, B: B, W: R - L, H: B - T, N: cursorMon }
+    if SnapState.Has(hwnd) {
+        ApplySnapState(hwnd, wa, SnapState[hwnd])
+    } else {
+        WinGetPos(&_x, &_y, &w, &h, "ahk_id " hwnd)
+        Snap(hwnd, wa.L + (wa.W - w) // 2, wa.T + (wa.H - h) // 2, w, h)
+    }
+    ResetCycle()
+}
+
 ; ---- Apply a recorded snap state on a given work area ----
 ApplySnapState(hwnd, wa, state) {
     switch state.kind {
@@ -421,6 +485,13 @@ ApplySnapState(hwnd, wa, state) {
             w := wa.W // 2
             h := wa.H // 2
             Snap(hwnd, wa.R - w, wa.B - h, w, h)
+        case "Gravity":
+            w := state.w, h := state.h
+            if (w > wa.W)
+                w := wa.W
+            if (h > wa.H)
+                h := wa.H
+            Snap(hwnd, wa.L + (wa.W - w) // 2, wa.T + (wa.H - h) // 2, w, h)
     }
 }
 
@@ -527,3 +598,6 @@ ActMoveMonitorDown(*)  => MoveToMonitor("D")
 
 ^#z::          ActUndo()
 ^#t::          ActToggleAlwaysOnTop()
+^#o::          ActOpacityCycle()
+^#g::          ActCenterGravity()
+^#p::          ActPullToCursor()
